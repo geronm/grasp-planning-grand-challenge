@@ -26,3 +26,22 @@ System modules:
 
 
 We will work with the object recognition team on this task. Their job will be to identify the type of object and its rough pose in the world. Our job will then be to grasp the known object.
+
+
+# Hardware Notes
+
+
+
+Arm:
+MoveIt!
+
+Robot: Wam
+Group name: arm
+
+
+Drivetrain:
+Move_Base
+
+Ros master 192.168.2.100:11311
+Mersxram/cogrob2017 
+
