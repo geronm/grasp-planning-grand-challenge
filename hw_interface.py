@@ -60,7 +60,7 @@ class ArmControl:
         total[j]+=self.touch[j]
       i+=1
       rospy.sleep(0.05)
-    self.touch_thresh = tuple(map(lambda x: (x/i) + TOUCH_HYSTERESIS, total))
+    self.touch_thresh = tuple(map(lambda x: (float(x)/i) + TOUCH_HYSTERESIS, total))
       
   def probe_at(self,location,orientation):
     target = Pose(Point(x,y,z), quaternion_from_euler(r, p, y, axes='sxyz'))
