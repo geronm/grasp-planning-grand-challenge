@@ -2,14 +2,14 @@ import numpy as np
 from polytope import *
 
 class BeliefEnsemble:
-    """ Belief ensemble
+    """ Belief Ensemble
         
         As opposed to having a general simulator for the world,
         we will optimize our simulator to operate over ensembles
         of belief states for maximum speed.
 
         A single belief ensemble corresponds to one belief domain,
-        which includes a single shape and the discretization
+        which includes a single convex shape and the discretization
         of state space over <x,y,theta>.
 
         We will use the power of numpy matrices to compute the
@@ -248,7 +248,7 @@ class BeliefEnsemble:
 
         return prob_obs
 
-    def render_belief_xy(self, plt, b_s, fingers=[]):
+    def render_belief_xy(self, plt, b_s, fingers=[], obs_true=[]):
         """ Renders the belief, marginalizing theta out
 
             Parameters
@@ -256,6 +256,15 @@ class BeliefEnsemble:
             plt: matplotlib.pyplot or plotting package with
             identical API
 
+            b_s: vector S-by-1 of probability values or values
+            of some sort.
+
+            fingers: the finger placement vectors, as they would
+            be passed into prob_obs
+
+            obs_true: the true observation, as it would be
+            passed into prob_obs
+            
             Returns
             ---
             None, but shows the resulting plot. """
@@ -301,9 +310,9 @@ if __name__=='__main__':
     x_lim = (0.0, 30.0)
     y_lim = (0.0, 20.0)
     theta_lim = (0.0, 2*np.pi)
-    nx = 60
-    ny = 60
-    ntheta = 60
+    nx = 40
+    ny = 40
+    ntheta = 40
     start = time.time()
     be_square_norot = BeliefEnsemble(poly, x_lim, y_lim, theta_lim, nx, ny, ntheta)
 
@@ -313,6 +322,7 @@ if __name__=='__main__':
         
         # Use fingers in a row:
         fingers = [np.array([[7.0 + 2*float(x)],[13.0]]) for x in range(-1,1+1)]
+        obs_true = [0, 1, 1]
         #obs = be_square_norot.get_ideal_obs_slow(fingers)
         #print obs
         #print np.transpose(np.reshape(prob_obs, (nx, ny, ntheta)))
@@ -349,7 +359,7 @@ if __name__=='__main__':
         
         # be_square_norot.polytopes[2*15+7].render_polytope(plt, xmax=20)
 
-        prob_obs = be_square_norot.prob_obs(fingers, [1, 1, 1], accuracy=0.785)
+        prob_obs = be_square_norot.prob_obs(fingers, obs_true, accuracy=0.785)
 
 
         print 'time to query one set of fingers %f' % (time.time() - start)
@@ -373,4 +383,4 @@ if __name__=='__main__':
 
 ##        assert (prob_obs_slow == prob_obs).all()
 
-        be_square_norot.render_belief_xy(plt, prob_obs, fingers)
+        be_square_norot.render_belief_xy(plt, prob_obs, fingers, obs_true)
