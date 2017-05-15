@@ -42,6 +42,8 @@ class ArmControl:
 
   def goto_pt(self,location,orientation):
     target = Pose(Point(*location), Quaternion(*list(quaternion_from_euler(*orientation))))
+    #posestamped instead of pose
+    #set frame to base_link within header
     print target
     self.goto_pt_internal(target)
 
