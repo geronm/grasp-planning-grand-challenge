@@ -29,8 +29,11 @@ class GrandChallengePOMDP(POMDP):
 
         """
     def __init__(self, layered_belief_ensemble,
-                        desired_grasp_pose,
-                        finger_positions):
+                 desired_grasp_pose,
+                 finger_positions,
+                 accuracy = 0.8,
+                 num_actions_max = 10,
+                 seed = None):
         """ Makes a POMDP instance
 
             Parameters:
@@ -45,40 +48,35 @@ class GrandChallengePOMDP(POMDP):
         self.be = layered_belief_ensemble
         self.desired_grasp_pose = desired_grasp_pose
         self.finger_positions = finger_positions
+        self.num_actions_max = num_actions_max
+        self.accuracy = accuracy
+        self.randgen = random.Random(seed)
 
     def prob_obs_given_bs_a(self, b_s, a, o):
         p_s = b_s
         fingers_center = a
-        obs_contact, iz = o
+        obs_contact, obs_iz = o
 
         fingers_recentered = [fingers_center + f for f in self.finger_positions]
-
-        # Delta_dist over iz:
-        b_z = np.zeros((len(self.be.belief_ensembles),1))
-        b_z[iz][0] = 1.0
 
         # For a given observation o, get the probability of that observation
         # under the belief p_s.
         total_prob_obs = np.sum(
             np.multiply(p_s,
-                        self.be.prob_obs(fingers_recentered, obs_contact, b_z)))
+                        self.be.prob_obs(fingers_recentered, (obs_contact, obs_iz), self.accuracy)))
 
         return total_prob_obs
 
     def update_belief(self, b_s, a, o):
         p_s = b_s
         fingers_center = a
-        obs_contact, iz = o
+        obs_contact, obs_iz = o
 
         fingers_recentered = [fingers_center + f for f in self.finger_positions]
-
-        # Delta_dist over iz:
-        b_z = np.zeros((len(self.be.belief_ensembles),1))
-        b_z[iz][0] = 1.0
         
         prob_obs_given_s = \
             np.multiply(p_s,
-                        self.be.prob_obs(fingers_recentered, obs_contact, b_z))
+                        self.be.prob_obs(fingers_recentered, (obs_contact, obs_iz), self.accuracy))
 
         p_s_new = prob_obs_given_s
 
@@ -140,16 +138,15 @@ class GrandChallengePOMDP(POMDP):
 
         return min( np.sum(p_s_nonzero) , np.sum(row_count_nonzero) + np.sum(col_count_nonzero) )
 
-    def get_possible_actions(self, b_s, N=4, seed=None):
+    def get_possible_actions(self, b_s):
         p_s = b_s
 
         possible_actions = []
 
         # Consider a random set of actions sampled within the domain
-        random.seed(seed)
-        for i in range(N):
-            x = self.be.x0 + random.random()*(self.be.x1 - self.be.x0)
-            y = self.be.y0 + random.random()*(self.be.y1 - self.be.y0)
+        for i in range(self.num_actions_max):
+            x = self.be.x0 + self.randgen.random()*(self.be.x1 - self.be.x0)
+            y = self.be.y0 + self.randgen.random()*(self.be.y1 - self.be.y0)
             theta = 0
             possible_actions.append(np.array([[x],[y]]))
 
@@ -190,4 +187,4 @@ class GrandChallengePOMDP(POMDP):
 
 if __name__ == '__main__':
     print 'I am GrandChallengePOMDP'
-    pass # TODO: Test this POMDP
+    pass # TODO: Test this POMDP. Currently, run gc.py to test.

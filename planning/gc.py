@@ -40,9 +40,9 @@ class GrandChallengeGraspPlanInstance(object):
         x_lim = (0.450, 0.875)
         y_lim = (-0.350, 0.350)
         theta_lim = (0, 2*np.pi)
-        nx = 60
-        ny = 60
-        ntheta = 20
+        nx = 20
+        ny = 20
+        ntheta = 12
         
         # Triple-poke block. One square atop two squares.
         belief_ensembles = []
@@ -150,6 +150,10 @@ if __name__ == '__main__':
     gc = GrandChallengeGraspPlanInstance()
     gc.reset(gc.BLOCK_TRIPLE_POKE)
     #gc.gc_pomdp.be.render_belief_xy(plt, gc.b_s)
+
+    print gc.gc_pomdp.get_possible_actions(gc.b_s)
+    print gc.gc_pomdp.get_possible_actions(gc.b_s)
+    print gc.gc_pomdp.get_possible_actions(gc.b_s)
 
     res = gc.query_grasp_loc_confidence()
 

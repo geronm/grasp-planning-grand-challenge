@@ -341,8 +341,11 @@ class LayeredBeliefEnsemble:
             TODO Params and Return"""
         return np.ones((self.S, 1)) / float(self.S)
 
-    def get_ideal_obs(self, fingers, iz):
-        """ Gives a vector for the predicted obs over each S
+    def get_ideal_obs(self, fingers):
+        """ Gives a matrix encoding the predicted
+            contacts for the fingers for each S, and
+            a value iz for stopping on the topmost
+            layer for each S.
 
             Parameters
             ---
@@ -355,63 +358,87 @@ class LayeredBeliefEnsemble:
 
             Returns
             ---
-            S-by-k matrix with ones in the ith row and jth
+            (contact, iz) where contact is an
+            S-by-k matrix with a 1 in the ith row and jth
             column if the ith state would yield contact in
-            the jth finger.
-            ."""
+            the jth finger, and iz is an S-by-1 matrix
+            of iz values indicating upon which layer
+            each of the hands will stop (gives max layer,
+            nz-1, if hand never contacts)."""
         S = self.S
         k = len(fingers)
 
         # query in z layer (this is ideal!)
-        results_full = self.belief_ensembles[iz].get_ideal_obs(fingers)
-        
-        return 0.0 + results_full
+        results_each_z = []
+        for iz in range(self.nz):
+            contact = self.belief_ensembles[iz].get_ideal_obs(fingers)
+            results_each_z.append(contact)
 
-    def prob_obs(self, fingers, obs, b_z, accuracy=0.8):
+        iz_given_h = (self.nz-1)*np.ones((self.S,1))
+        contact_given_h = results_each_z[self.nz - 1]
+        # go in reverse order through the layers,
+        # assigning in the observation depth for that layer.
+        for iz in reversed(range(self.nz)):
+            made_contact = np.max(results_each_z[iz], 1)
+            iz_given_h[made_contact != 0] = iz
+            
+            made_contact_repeated = np.transpose(np.kron(made_contact,np.ones((k,1))))
+            #print made_contact_repeated.shape
+            #print contact_given_h.shape
+            #print results_each_z[iz].shape
+            contact_given_h[made_contact_repeated != 0] = results_each_z[iz][made_contact_repeated != 0]
+        
+        return (0.0 + contact_given_h), (0.0 + iz_given_h)
+
+    def prob_obs(self, fingers, obs, accuracy=0.8):
         """ Vector of probability values in {p,(1-p)} giving
             prob obs given state.
 
             Parameters
             ---
             fingers: length-k list of finger vectors,
-            same spec as prob_obs \
+            same spec as prob_obs.
     
-            obs: length-k list of 1s and 0s corresponding to
-            whether each finger made contact.
+            obs: a tuple (contacts, iz). contacts is a length-k
+            list of 1s and 0s corresponding to whether each finger
+            made contact. iz is an int telling the level of
+            contact (in the range [0,self.nz-1]))
 
-            b_z: nz-by-1 Numpy vector giving the probability
-            distribution belief over iz. Really ought to be
-            eta-normalized, though won't complain if not.
-
-            accuracy: accuracy of the sensor. Correct reading
-            with probability accuracy, incorrect reading
-            with probability 1-accuracy or something. In range
-            [0,1].
+            accuracy: accuracy of the sensor. Correct readings
+            have probability accuracy; incorrect readings
+            split the rest of the probability 1-accuracy or
+            something. In range [0,1].
 
             Returns
             ---
             Vector of obs probabilities given state, length S-by-1. """
-
-        assert b_z.shape == (self.nz, 1)
         
-        prob_obs = np.zeros((self.S, 1))
+        contact_obs, iz_obs = obs
 
-        for iz in range(self.nz):
-            if b_z[iz][0] != 0:
-                ideal_obs = self.get_ideal_obs(fingers, iz)
+        # Observation probabilities:
+        #
+        # There are an interesting number of possible observations.
+        #   (2**(len(contact_obs))) * self.nz
+        # We model this observation as being the ideal reading
+        # with probability accuracy, and as emitting a random
+        # observation with uniform probability summing to (1-accuracy).
+        prob_incorrect = float(1-accuracy) / ((2**(len(contact_obs))) * self.nz)
+        prob_correct = accuracy + prob_incorrect # can misfire correctly!
 
-                fingers_many = np.kron(np.ones((len(ideal_obs),1)),np.transpose(np.array(obs)))
+        contact_ideal, contact_iz = self.get_ideal_obs(fingers)
+        
+        fingers_many = np.kron(np.ones((len(contact_ideal),1)),np.transpose(np.array(contact_obs)))
+        iz_many = np.kron(np.ones((len(contact_iz),1)),np.array([[iz_obs]]))
 
-                # probabilities
-                prob_correct = accuracy
-                prob_incorrect = float(1-accuracy) / (2**(len(obs)) - 1)
+        # find bitmask of matches
+        fingers_matches = np.prod(0.0 + np.equal(fingers_many,contact_ideal), axis=1).reshape((len(contact_ideal),1))
+        iz_matches = np.prod(0.0 + np.equal(iz_many,contact_iz), axis=1).reshape((len(contact_ideal),1))
 
-                # find bitmask of matches
-                fingers_matches = np.prod(0.0 + np.equal(fingers_many,ideal_obs), axis=1).reshape((len(ideal_obs),1))
+        matches = np.logical_and(fingers_matches, iz_matches)
 
-                prob_obs += b_z[iz][0]*(prob_incorrect + (prob_correct-prob_incorrect)*fingers_matches)
+        prob_obs_given_s = (prob_incorrect + (prob_correct-prob_incorrect)*matches)
 
-        return prob_obs
+        return prob_obs_given_s
 
     def render_belief_xy(self, plt, b_s, fingers=[], obs_true=[]):
         """ Renders the belief, marginalizing theta out
@@ -453,13 +480,13 @@ class LayeredBeliefEnsemble:
                 ixs.append(ix)
                 iys.append(iy)
         
-        plt.pcolormesh(ix_to_x, iy_to_y, np.transpose(scores))
+        plt.pcolormesh(np.array(ix_to_x), np.array(iy_to_y), np.transpose(scores))
 
 
         if len(fingers) > 0:
             fxs = [f[0][0] for f in fingers]
             fys = [f[1][0] for f in fingers]
-            plt.scatter(fxs, fys)
+            plt.scatter(np.array(fxs), np.array(fys))
 
         
         plt.show()
@@ -516,14 +543,14 @@ def test_tetris_angle():
         
         # Use fingers in a row:
         fingers = [np.array([[10.0 + 2*float(x)],[13.0]]) for x in range(-0,0+1)]
-        obs_true = [1, 1]
+        obs_true = ([1, 1], 0)
         #obs = be_main.get_ideal_obs_slow(fingers)
         #print obs
         #print np.transpose(np.reshape(prob_obs, (nx, ny, ntheta)))
 
         start = time.time()
 
-        prob_obs = be_main.prob_obs(fingers, obs_true, np.array([[0.5],[0.5]]), accuracy=0.785)
+        prob_obs = be_main.prob_obs(fingers, obs_true, accuracy=0.785)
 
 
         print 'time to query one set of fingers %f' % (time.time() - start)
@@ -584,15 +611,35 @@ def test_pyramid():
     if True:
         
         # Use fingers in a row:
-        fingers = [np.array([[10.0 + 2*float(x)],[13.0]]) for x in range(-0,0+1)]
-        obs_true = [1, 1]
+        fingers = [np.array([[10.0 + 2*float(x)],[13.0]]) for x in range(-0,1+1)]
+        obs_true = ([1 for _ in range(len(fingers))], 2)
         #obs = be_main.get_ideal_obs_slow(fingers)
         #print obs
         #print np.transpose(np.reshape(prob_obs, (nx, ny, ntheta)))
 
         start = time.time()
 
-        prob_obs = be_main.prob_obs(fingers, obs_true, np.array([[1./3],[1./3],[1./3]]), accuracy=0.785)
+        prob_obs = be_main.prob_obs(fingers, obs_true, accuracy=0.8)
+
+
+        print 'time to query one set of fingers %f' % (time.time() - start)
+        print 'done'
+
+        be_main.render_belief_xy(plt, prob_obs, fingers, obs_true)
+
+
+    if True:
+        
+        # Use fingers in a row:
+        fingers = [np.array([[10.0 + 2*float(x)],[13.2]]) for x in range(-0,1+1)]
+        obs_true = ([1 for _ in range(len(fingers))], 1)
+        #obs = be_main.get_ideal_obs_slow(fingers)
+        #print obs
+        #print np.transpose(np.reshape(prob_obs, (nx, ny, ntheta)))
+
+        start = time.time()
+
+        prob_obs = np.multiply(prob_obs, be_main.prob_obs(fingers, obs_true, accuracy=0.8))
 
 
         print 'time to query one set of fingers %f' % (time.time() - start)
@@ -602,4 +649,5 @@ def test_pyramid():
 
 
 if __name__=='__main__':
+    # test_tetris_angle()
     test_pyramid()
