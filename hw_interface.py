@@ -11,12 +11,12 @@ from std_srvs.srv import Empty
 from math import pi
 import numpy as np
 
-TOUCH_HYSTERESIS = 200 #gripper feedback 0-4048
-TOUCH_HYSTERESIS = 80
+TOUCH_HYSTERESIS = 120 #gripper feedback 0-4048
+
 
 class ArmControl:
 
-  UNSAFE_Z_LIMIT_METERS = 0.6 # 0.490 # 0.62
+  UNSAFE_Z_LIMIT_METERS = 0.56 # 0.490 # 0.62
   SAFE_Z_LIMIT_METERS = 1.0
   def __init__(self, live=False):
     #Should it actually physically move?
@@ -50,7 +50,7 @@ class ArmControl:
 			Pose(Point(*location), Quaternion(*list(quaternion_from_euler(*orientation)))))
     #posestamped instead of pose
     #set frame to base_link within header
-    print target
+    #print target
     assert location[2] >= self.UNSAFE_Z_LIMIT_METERS
     self.goto_pt_internal(target)
 
@@ -107,14 +107,16 @@ class ArmControl:
     self.goto_pt(tuple(my_loc), tuple(my_ori))
     
     while my_loc[2] > Z_LIMIT:
-      print 'MOVING WITH Z_LIMIT (meters from floor): %f' % Z_LIMIT
+      #print 'Moving Down to: {}. Limit: {}'.format(my_loc[2],Z_LIMIT)
+      rospy.sleep(0.1)
       if any(np.less(self.touch_thresh, self.touch)):
         print ('Contact detected!: %s' % str(np.less(self.touch_thresh, self.touch)))
         break
       my_loc[2] -= .02
       if my_loc[2] > Z_LIMIT:
         self.goto_pt(tuple(my_loc), tuple(my_ori))
-      print (self.touch)
+      #print (self.touch)
+
 
     if my_loc[2] <= Z_LIMIT:
       print ('Z_LIMIT reached with z value: %f' % my_loc[2])

@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 from hw_interface import ArmControl
 from planning.gc import GrandChallengeGraspPlanInstance
 import rospy
@@ -15,8 +17,8 @@ import numpy as np
    execute grasp planning. """
 import matplotlib.pyplot as plt
 
-Z_LIMIT = 0.602
-run_live = False
+Z_LIMIT = 0.60
+run_live = True
 do_viz = True
 
 ## LOAD HARDWARE INTERFACE
@@ -35,12 +37,12 @@ arm_control.open_hand()
 gc = GrandChallengeGraspPlanInstance()
 gc.reset(gc.BLOCK_TRIPLE_POKE)
 
-if do_viz:
-  gc.gc_pomdp.be.render_belief_xy(plt, np.array(gc.b_s))
+# if do_viz:
+#   gc.gc_pomdp.be.render_belief_xy(plt, np.array(gc.b_s))
 
 beliefs = []
 actions = []
-max_itr = 2
+max_itr = 3
 a, o = None, None
 
 beliefs.append(gc.b_s)
@@ -89,8 +91,8 @@ while confidence < 0.6 and max_itr > 0 and not gc.gc_pomdp.is_terminal_belief(gc
   max_itr -= 1
 
   fingers_recentered = [a + f for f in gc.gc_pomdp.finger_positions]
-  #if do_viz:
-  #  gc.gc_pomdp.be.render_belief_xy(plt, np.array(gc.b_s), fingers_recentered)
+  if do_viz:
+   gc.gc_pomdp.be.render_belief_xy(plt, np.array(gc.b_s), fingers_recentered)
 
 
 ## GRASP AT GUESSED LOCATION:
@@ -99,13 +101,13 @@ guessed_obj_pose = gc.gc_pomdp.be.indices_to_continuous_pose(
 ox, oy, otheta = guessed_obj_pose
 print "Grasping object at " + str((ox, oy, otheta))
 # CONVERT TO A HAND POSE
-hx = ox # reach palm to where object really is
+hx = ox+0.07 # reach palm to where object really is
 hy = oy
 hyaw = otheta
-grasp_pre_loc = [hx, hy, LOC_NOMINAL[2] + 0.10]
+grasp_pre_loc = [hx, hy, LOC_NOMINAL[2] + 0.05]
 grasp_pre_ori = [ORIENT_NOMINAL[0], ORIENT_NOMINAL[1], hyaw]
 
-grasp_dur_loc = [hx, hy, Z_LIMIT + gc.gc_pomdp.be.z0]
+grasp_dur_loc = [hx, hy, Z_LIMIT + gc.gc_pomdp.be.z0-0.07]
 grasp_dur_ori = [ORIENT_NOMINAL[0], ORIENT_NOMINAL[1], hyaw]
 
 print "grasp_pre_loc: " + str(grasp_pre_loc)
