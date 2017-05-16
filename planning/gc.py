@@ -82,6 +82,13 @@ class GrandChallengeGraspPlanInstance(object):
         self.canon_grasp_pose[self.BLOCK_TRIPLE_POKE] = (0.,0.,0.)
 
 
+        rect1 = Square(LONG_BLOCK_LENGTH/2, BLOCK_WIDTH_UNIT/2)
+
+        be_rect_norot1 = BeliefEnsemble(rect1, x_lim, y_lim, theta_lim, nx, ny, ntheta)
+        multi = MultiBeliefEnsemble([be_rect_norot1])
+        self.canon_blocks[self.BLOCK_LONG] = LayeredBeliefEnsemble([multi], (2*BLOCK_THICKNESS_UNIT, 0.0))
+        self.canon_grasp_pose[self.BLOCK_LONG] = (0., 0., 0.)
+
         # Note the (x,y)-offset of fingertips
 ##        self.finger_positions = [np.array([[fx],[fy]]) for (fx, fy) in \
 ##                                 [(FINGER_LENGTH,FINGER_OFFSET),
@@ -131,8 +138,36 @@ class GrandChallengeGraspPlanInstance(object):
         theta_states_margin = int(math.ceil(MARGIN_RADIANS * ntheta / float(theta1 - theta0)))
 
         # get guess
-        (gx, gy, gtheta) = be.big_index_to_indices(np.argmax(self.b_s))
+        # (gx, gy, gtheta) = be.big_index_to_indices(np.argmax(self.b_s))
+        gx = np.kron(np.ones((1,ny,ntheta)), np.arange(nx).reshape((nx,1,1)))
+        gx = gx.reshape((nx*ny*ntheta,1))
 
+        gy = np.kron(np.ones((nx,1,ntheta)), np.arange(ny).reshape((1,ny,1)))
+        gy = gy.reshape((nx*ny*ntheta,1))
+        
+        gtheta = np.kron(np.ones((nx,ny,1)), np.arange(ntheta).reshape((1,1,ntheta)))
+        gtheta = gtheta.reshape((nx*ny*ntheta,1))
+
+        
+        # x and y are easy, just get their expectation
+        gx = int(np.dot(gx.transpose(),self.b_s))
+        gy = int(np.dot(gy.transpose(),self.b_s))
+
+        # for theta, map to unit circle and take expectation
+        # in the plane, then map back to theta
+        gtheta_radians = gtheta * 2 * np.pi / ntheta
+        gtheta_cos = np.cos(gtheta_radians)
+        gtheta_sin = np.sin(gtheta_radians)
+        gtheta_cos_exp = float(np.dot(gtheta_cos.transpose(),self.b_s))
+        gtheta_sin_exp = float(np.dot(gtheta_sin.transpose(),self.b_s))
+        print gtheta_cos_exp, gtheta_sin_exp
+        if abs(gtheta_sin_exp) < 0.01 and abs(gtheta_cos_exp) < 0.01:
+            gtheta = int(np.dot(gtheta.transpose(),self.b_s))
+        else:
+            gtheta_radians = np.arctan2(gtheta_sin_exp,gtheta_cos_exp)
+            githeta = int(gtheta_radians * ntheta / 2 / np.pi)
+            gtheta = max([githeta, githeta-ntheta, githeta+ntheta], \
+                                         key=lambda x: float(0 <= x < ntheta))
         b_s_rect = self.b_s.reshape((nx, ny, ntheta))
 
         # sum up belief to get probability that state is in that max
@@ -150,8 +185,15 @@ class GrandChallengeGraspPlanInstance(object):
 
         return (gx, gy, gtheta), prob_grasp
 
+if __name__ == '__main__' and False:
+    gc = GrandChallengeGraspPlanInstance()
+    gc.reset(gc.BLOCK_TRIPLE_POKE)
+    loc, conf = gc.query_grasp_loc_confidence()
+    print loc
+    print conf
+
     
-if __name__ == '__main__':
+if __name__ == '__main__' and True:
     import matplotlib.pyplot as plt
     
     gc = GrandChallengeGraspPlanInstance()

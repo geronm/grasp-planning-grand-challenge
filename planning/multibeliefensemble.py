@@ -320,9 +320,9 @@ class LayeredBeliefEnsemble:
     def continuous_pose_to_indices(self, pose):
         x, y, theta = pose
         
-        ix = (x - self.x0) // (self.x1-self.x0)
-        iy = (y - self.y0) // (self.y1-self.y0)
-        itheta = (theta - self.theta0) // (self.theta1-self.theta0)
+        ix = (self.nx*(x - self.x0)) // (self.x1-self.x0)
+        iy = (self.ny*(y - self.y0)) // (self.y1-self.y0)
+        itheta = (self.ntheta*(theta - self.theta0)) // (self.theta1-self.theta0)
 
         return (ix, iy, itheta)
     
