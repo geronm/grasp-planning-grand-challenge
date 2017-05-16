@@ -40,8 +40,8 @@ class GrandChallengeGraspPlanInstance(object):
         x_lim = (0.450, 0.875)
         y_lim = (-0.350, 0.350)
         theta_lim = (0, 2*np.pi)
-        nx = 20
-        ny = 20
+        nx = 60
+        ny = 60
         ntheta = 20
         
         # Triple-poke block. One square atop two squares.
@@ -105,8 +105,8 @@ class GrandChallengeGraspPlanInstance(object):
 
     def query_grasp_loc_confidence(self):
         # Confident if we can be within a sixth of a block width away
-        MARGIN_METERS = float(self.BLOCK_WIDTH_UNIT) / 6.0
-        MARGIN_RADIANS = 0.1
+        MARGIN_METERS = float(self.BLOCK_WIDTH_UNIT) / 3.0
+        MARGIN_RADIANS = np.pi # 0.1
 
         be = self.gc_pomdp.be
         
@@ -130,6 +130,7 @@ class GrandChallengeGraspPlanInstance(object):
 
         # sum up belief to get probability that state is in that max
         # belief region
+        print x_states_margin, y_states_margin, theta_states_margin
         prob_grasp = 0.0
         for ix in range(gx-x_states_margin, gx+x_states_margin+1):
             for iy in range(gy-y_states_margin, gy+y_states_margin+1):
@@ -183,6 +184,8 @@ if __name__ == '__main__':
         print 'obs: %s' % str(o)
         beliefs.append(gc.b_s)
         print 'is_terminal_belief(b_s): %s' % str(gp.is_terminal_belief(gc.b_s,a,o))
+
+        print 'np.argmax b_s: %s' % str(np.argmax(gc.b_s))
 
         loc,confidence = gc.query_grasp_loc_confidence()
         print 'grasp and graspability: %s %s' % (str(loc), str(confidence))

@@ -466,7 +466,7 @@ class LayeredBeliefEnsemble:
 
 
 
-if __name__=='__main__':
+def test_tetris_angle():
     import matplotlib.pyplot as plt
     import time
     import random
@@ -530,3 +530,76 @@ if __name__=='__main__':
         print 'done'
 
         be_main.render_belief_xy(plt, prob_obs, fingers, obs_true)
+
+
+
+def test_pyramid():
+    import matplotlib.pyplot as plt
+    import time
+    import random
+    
+    x_lim = (0.0, 50.0)
+    y_lim = (0.0, 50.0)
+    theta_lim = (0.5, 2*np.pi)
+    nx = 160
+    ny = 160
+    ntheta = 1
+
+    belief_ensembles = []
+
+
+    # Top object is a small square
+    poly1 = Square(5.0, 5.0)
+    start = time.time()
+    be_square_norot1 = BeliefEnsemble(poly1, x_lim, y_lim, theta_lim, nx, ny, ntheta)
+    
+    be_main = MultiBeliefEnsemble([be_square_norot1])
+
+    belief_ensembles.append(be_main)
+
+
+    # Bottom object is a bigger square
+    poly1 = Square(7.5,7.5)
+    start = time.time()
+    be_square_norot1 = BeliefEnsemble(poly1, x_lim, y_lim, theta_lim, nx, ny, ntheta)
+    
+    be_main = MultiBeliefEnsemble([be_square_norot1])
+
+    belief_ensembles.append(be_main)
+
+
+    # Bottommost object is a biggest square
+    poly1 = Square(10.0, 10.0)
+    start = time.time()
+    be_square_norot1 = BeliefEnsemble(poly1, x_lim, y_lim, theta_lim, nx, ny, ntheta)
+    
+    be_main = MultiBeliefEnsemble([be_square_norot1])
+
+    belief_ensembles.append(be_main)
+
+    be_main = LayeredBeliefEnsemble(belief_ensembles, (1.0, 0.0))
+
+    print 'time to construct %d-state BeliefEnsemble %f' % (be_main.S, time.time() - start)
+
+    if True:
+        
+        # Use fingers in a row:
+        fingers = [np.array([[10.0 + 2*float(x)],[13.0]]) for x in range(-0,0+1)]
+        obs_true = [1, 1]
+        #obs = be_main.get_ideal_obs_slow(fingers)
+        #print obs
+        #print np.transpose(np.reshape(prob_obs, (nx, ny, ntheta)))
+
+        start = time.time()
+
+        prob_obs = be_main.prob_obs(fingers, obs_true, np.array([[1./3],[1./3],[1./3]]), accuracy=0.785)
+
+
+        print 'time to query one set of fingers %f' % (time.time() - start)
+        print 'done'
+
+        be_main.render_belief_xy(plt, prob_obs, fingers, obs_true)
+
+
+if __name__=='__main__':
+    test_pyramid()
