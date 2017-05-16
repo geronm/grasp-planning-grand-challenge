@@ -153,38 +153,75 @@ class GrandChallengePOMDP(POMDP):
         return possible_actions
 
     def get_possible_observations(self, b_s, a):
+        # This method will cheat, use max probability
+        # observation as the only expected observation
+        # (this is reasonable, since our observation model
+        # is pretty dumb anyway: ideal with probability
+        # accuracy, random with probability 1-accuracy).
+        
         p_s = b_s
         fingers_center = a
 
-##        fingers_recentered = [fingers_center + f for f in self.finger_positions]
-##
-##        # For each in s, get the observation under this a
-##        obs_ideals = self.be.get_ideal_obs(fingers_recentered, obs_contact)
-##
-##        # Zero-out observations corresponding to probability zero
-##        obs_prob_scaled = np.multiply(np.kron(p_s,np.ones((len(self.finger_positions),1))),obs_ideals)
-##
-##        # Test these obs_ideals for whether they contain each of the possible observations
+        fingers_recentered = [fingers_center + f for f in self.finger_positions]
+
+        # For each in s, get the observation under this a
+        obs_ideals = self.be.get_ideal_obs(fingers_recentered)
+
+        # Take only ideal observations
+        contact_obs, contact_iz = obs_ideals
+
+        # Encode observations as integers.
+        # {self.nz} x {0,1}^|f|
+        #
+        # Formula:
+        #  N = nz * |f|_2 + iz
+        encoded_obs = np.transpose(contact_iz)
+        for f in range(contact_obs.shape[1]):
+            encoded_obs += (2**f) * np.transpose(contact_obs)[f] * self.be.nz
+
+        # Uniquify! Turn S nonunique observations into 1-16 unique observations.
+        encoded_obs = np.unique(encoded_obs)
+
+        # Decode the unique observations
+        decoded_obs = []
+        for c in encoded_obs:
+            iz = c % self.be.nz
+            c = c // self.be.nz
+            contacts = []
+            for f in range(contact_obs.shape[1]):
+                B = (2**f)
+                contacts.append(int((c // B) % 2))
+            decoded_obs.append((contacts,iz))
+
+        reencoded_obs = []
+        for o in decoded_obs:
+            c = o[1]
+            for f in range(contact_obs.shape[1]):
+               c += (2**f) * o[0][f] * self.be.nz
+            reencoded_obs.append(c)
+
+        ret = decoded_obs
+        
+##        possible_observations = []
 ##        
-
-        possible_observations = []
-        
-        for i in range(2**len(self.finger_positions)):
-            obs = []
-            k = i
-            for j in range(len(self.finger_positions)):
-                obs.insert(0, [k % 2])
-                k //= 2
-
-            for k in range(len(self.be.belief_ensembles)):
-                possible_observations.append((np.array(obs), k))
-        
-        return [o for o in possible_observations if self.prob_obs_given_bs_a(b_s, a, o) > 0.0]
+##        for i in range(2**len(self.finger_positions)):
+##            obs = []
+##            k = i
+##            for j in range(len(self.finger_positions)):
+##                obs.insert(0, k % 2)
+##                k //= 2
+##
+##            for k in range(len(self.be.belief_ensembles)):
+##                possible_observations.append((obs, k))
+##        
+##        ret = [o for o in possible_observations if self.prob_obs_given_bs_a(b_s, a, o) > 0.0]
+##        print ret
+        return ret
 
     def get_uniform_belief(self):
         return self.be.get_uniform_belief()
 
 
 if __name__ == '__main__':
-    print 'I am GrandChallengePOMDP'
+    print 'I am GrandChallengePOMDP. Run gc.py to test me.'
     pass # TODO: Test this POMDP. Currently, run gc.py to test.
