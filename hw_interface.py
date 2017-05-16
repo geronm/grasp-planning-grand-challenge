@@ -11,16 +11,24 @@ from std_srvs.srv import Empty
 from math import pi
 import numpy as np
 
-TOUCH_HYSTERESIS = 120 #gripper feedback 0-4048
+TOUCH_HYSTERESIS = -120 #gripper feedback 0-4048
+
+
 
 
 class ArmControl:
 
   UNSAFE_Z_LIMIT_METERS = 0.56 # 0.490 # 0.62
   SAFE_Z_LIMIT_METERS = 1.0
+
   def __init__(self, live=False):
     #Should it actually physically move?
     self.live = live
+
+    self.Z_PROBE = [None]*3
+    self.Z_PROBE[0] = 0.83
+    self.Z_PROBE[1] = 0.79
+    self.Z_PROBE[2] = 0.68
 
     #ROS-related init
     #TODO - FIX
@@ -64,8 +72,8 @@ class ArmControl:
     self.touch = (data.data[0],data.data[1],data.data[2])
 
   def calibrate_touch_sensor(self):
-    #self.goto_pt((0.55, 0, 0.82),(pi, 0, 0))   # 0.200, -0.547, 1.059
-    self.goto_pt((0.800, -0.0, 1.059-.13),(pi, 0, 0))  # Almost touching: (0.800, -0.0, 1.059-.20)
+    #self.goto_pt((0.800, -0.0, 1.059-.13),(pi, 0, 0))  # Almost touching: (0.800, -0.0, 1.059-.20)
+    self.goto_pt((0.5, -0.0, 0.9),(0, 1.57, 0))  # Almost touching: (0.800, -0.0, 1.059-.20)
     end = rospy.get_time()+2
     i = 0
     total = [0,0,0]
@@ -105,26 +113,21 @@ class ArmControl:
     my_ori = list(orientation)
     
     self.goto_pt(tuple(my_loc), tuple(my_ori))
-    
-    while my_loc[2] > Z_LIMIT:
-      #print 'Moving Down to: {}. Limit: {}'.format(my_loc[2],Z_LIMIT)
+    j=1
+    for i in range(1,3):
+      my_loc[2] = self.Z_PROBE[i]
+      self.goto_pt(tuple(my_loc), tuple(my_ori))
       rospy.sleep(0.1)
-      if any(np.less(self.touch_thresh, self.touch)):
-        print ('Contact detected!: %s' % str(np.less(self.touch_thresh, self.touch)))
+      if any(np.greater(self.touch_thresh, self.touch)):
+        print ('Contact detected!: %s' % str(np.greater(self.touch_thresh, self.touch)))
+        j=i-1
         break
-      my_loc[2] -= .02
-      if my_loc[2] > Z_LIMIT:
-        self.goto_pt(tuple(my_loc), tuple(my_ori))
-      #print (self.touch)
 
-
-    if my_loc[2] <= Z_LIMIT:
-      print ('Z_LIMIT reached with z value: %f' % my_loc[2])
-
+    touch = np.greater(self.touch_thresh, self.touch)
     # Finally, move back to original location, orientation
     self.goto_pt(tuple(location), tuple(orientation))
 
-    return tuple(my_loc), tuple(my_ori), np.less(self.touch_thresh, self.touch)
+    return tuple(my_loc), tuple(my_ori), touch, j
 
 
     #target = Pose(Point(*location), Quaternion(*list(quaternion_from_euler(*orientation))))

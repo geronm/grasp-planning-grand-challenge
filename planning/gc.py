@@ -38,11 +38,11 @@ class GrandChallengeGraspPlanInstance(object):
         # The following parameters are common to all blocks.
         # They define the pose space and discretization.
         x_lim = (0.450 + self.FINGER_LENGTH, 0.875 + self.FINGER_LENGTH)
-        y_lim = (-0.350, 0.350)
+        y_lim = (-0.350, 0)
         theta_lim = (0, 2*np.pi)
-        nx = 25
-        ny = 25
-        ntheta = 20
+        nx = 15
+        ny = 15
+        ntheta = 12
         
         # Triple-poke block. One square atop two squares.
         belief_ensembles = []
@@ -99,8 +99,8 @@ class GrandChallengeGraspPlanInstance(object):
 ##                                          (0,-FINGER_OFFSET),
 ##                                          (-2*FINGER_LENGTH,0)]]
         self.finger_positions = [np.array([[fx],[fy]]) for (fx, fy) in \
-                                         [(0,FINGER_OFFSET),
-                                          (0,-FINGER_OFFSET)]]
+                                         [(0,-FINGER_OFFSET),
+                                          (0,FINGER_OFFSET)]]
 
     def reset(self, block_type):
         self.block_type = block_type

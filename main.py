@@ -25,12 +25,13 @@ do_viz = True
 rospy.init_node('arm_control_test', anonymous=True)
 arm_control = ArmControl(live=run_live)
 print "moving to calibration point..."
+arm_control.open_hand()
 arm_control.calibrate_touch_sensor()
 print "done. Calibration = {}".format(arm_control.touch_thresh)
 
 ## OPEN HAND
 print "opening hand.."
-arm_control.open_hand()
+
 
 
 ## PREPARE PLANNERS
@@ -57,8 +58,9 @@ while confidence < 0.6 and max_itr > 0 and not gc.gc_pomdp.is_terminal_belief(gc
   actions.append(a)
 
   ## REACH IN HARDWARE
-  LOC_NOMINAL = [0.735, 0.0, 0.8]
-  ORIENT_NOMINAL = [-3.116, 0.047, -0.052]
+  LOC_NOMINAL = (0.735, 0.0, arm_control.Z_PROBE[0])
+  ORIENT_NOMINAL = (0, 1.57, 0)
+  ORIENT_GRASP = (3.14, 0, 0)
   my_loc = list(LOC_NOMINAL)
   my_ori = list(ORIENT_NOMINAL)
   my_loc[0], my_loc[1] = max(a[0][0] - gc.FINGER_LENGTH, .45)   ,    a[1][0]
@@ -66,13 +68,13 @@ while confidence < 0.6 and max_itr > 0 and not gc.gc_pomdp.is_terminal_belief(gc
   assert -.35 <= my_loc[1] <= .35, str(my_loc[1])
   assert 0.6 <= my_loc[2] <= 1.0, str(my_loc[2])
   print 'REACHING FOR LOCATION ' + str(my_loc)
-  probe_loc, probe_ori, probe_touch = arm_control.probe_at( \
+  probe_loc, probe_ori, probe_touch, probe_Z_idx = arm_control.probe_at( \
           my_loc, my_ori,Z_LIMIT)
   
   ## PROCESS UPDATE
   touch = [(1 if i else 0) for i in probe_touch[:2]] # ONLY FIRST TWO FINGERS, AND MUST SHIFT
   iz = int( max(0, min(2, gc.gc_pomdp.be.z_continuous_to_index(probe_loc[2] - Z_LIMIT))))
-  o = (touch, iz)
+  o = (touch, probe_Z_idx)
   gc.step_update_bs(a, o)
   
   #sim_obs = sim.grasp_action(a[0],a[1])
@@ -105,10 +107,10 @@ hx = ox+0.07 # reach palm to where object really is
 hy = oy
 hyaw = otheta
 grasp_pre_loc = [hx, hy, LOC_NOMINAL[2] + 0.05]
-grasp_pre_ori = [ORIENT_NOMINAL[0], ORIENT_NOMINAL[1], hyaw]
+grasp_pre_ori = [ORIENT_GRASP[0], ORIENT_GRASP[1], hyaw]
 
 grasp_dur_loc = [hx, hy, Z_LIMIT + gc.gc_pomdp.be.z0-0.07]
-grasp_dur_ori = [ORIENT_NOMINAL[0], ORIENT_NOMINAL[1], hyaw]
+grasp_dur_ori = [ORIENT_GRASP[0], ORIENT_GRASP[1], hyaw]
 
 print "grasp_pre_loc: " + str(grasp_pre_loc)
 print "grasp_pre_ori: " + str(grasp_pre_ori)
