@@ -12,11 +12,11 @@ from math import pi
 import numpy as np
 
 TOUCH_HYSTERESIS = 200 #gripper feedback 0-4048
-TOUCH_HYSTERESIS = 50
+TOUCH_HYSTERESIS = 80
 
 class ArmControl:
 
-  UNSAFE_Z_LIMIT_METERS = 0.490 # 0.62
+  UNSAFE_Z_LIMIT_METERS = 0.6 # 0.490 # 0.62
   SAFE_Z_LIMIT_METERS = 1.0
   def __init__(self, live=False):
     #Should it actually physically move?
@@ -51,6 +51,7 @@ class ArmControl:
     #posestamped instead of pose
     #set frame to base_link within header
     print target
+    assert location[2] >= self.UNSAFE_Z_LIMIT_METERS
     self.goto_pt_internal(target)
 
   def goto_pt_internal(self, target):
@@ -118,6 +119,9 @@ class ArmControl:
     if my_loc[2] <= Z_LIMIT:
       print ('Z_LIMIT reached with z value: %f' % my_loc[2])
 
+    # Finally, move back to original location, orientation
+    self.goto_pt(tuple(location), tuple(orientation))
+
     return tuple(my_loc), tuple(my_ori), np.less(self.touch_thresh, self.touch)
 
 
@@ -160,11 +164,19 @@ class ArmControl:
       f = rospy.ServiceProxy('/wam/close', Empty)
       resp1 = f()
     else:
-      print ('Would open hand if not live')
+      print ('Would close hand if live')
+
+  def open_hand(self):
+    if self.live:
+      rospy.wait_for_service('/wam/open')
+      f = rospy.ServiceProxy('/wam/open', Empty)
+      resp1 = f()
+    else:
+      print ('Would open hand if live')
 
 if __name__=='__main__':
   rospy.init_node('arm_control_test', anonymous=True)
-  arm_control = ArmControl(live=False)
+  arm_control = ArmControl(live=True)
   print "moving to calibration point..."
   arm_control.calibrate_touch_sensor()
   print "done. Calibration = {}".format(arm_control.touch_thresh)
@@ -247,14 +259,14 @@ if __name__=='__main__':
                 in RPY (degree) [-178.786, 4.502, 4.837] """
 
   # LOC_VERY_CLOSE_DONTUSE = [0.450, 0.0, 0.775]
-  LOC_NOMINAL = [0.735, 0.0, 0.69] # [0.735, 0.0, 0.775]
+  LOC_NOMINAL = [0.735, 0.0, 0.8] # [0.735, 0.0, 0.69] # [0.735, 0.0, 0.775]
   ORIENT_NOMINAL = [-3.116, 0.047, -0.052]
 
   my_loc = LOC_NOMINAL
   my_ori = ORIENT_NOMINAL
   
-  # arm_control.probe_at(my_loc, my_ori, arm_control.UNSAFE_Z_LIMIT_METERS)
-  arm_control.close_hand()
+  arm_control.probe_at(my_loc, my_ori, arm_control.UNSAFE_Z_LIMIT_METERS)
+  # arm_control.close_hand()
   
 
   # pose, contact_arr = arm_control.probe_at((0,0,0),(0,0,0))

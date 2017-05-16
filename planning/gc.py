@@ -37,12 +37,12 @@ class GrandChallengeGraspPlanInstance(object):
 
         # The following parameters are common to all blocks.
         # They define the pose space and discretization.
-        x_lim = (0.450, 0.875)
+        x_lim = (0.450 + self.FINGER_LENGTH, 0.875 + self.FINGER_LENGTH)
         y_lim = (-0.350, 0.350)
         theta_lim = (0, 2*np.pi)
-        nx = 20
-        ny = 20
-        ntheta = 12
+        nx = 25
+        ny = 25
+        ntheta = 20
         
         # Triple-poke block. One square atop two squares.
         belief_ensembles = []
