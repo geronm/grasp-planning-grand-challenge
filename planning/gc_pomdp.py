@@ -1,5 +1,6 @@
 from pomdp import POMDP
 import numpy as np
+import scipy.stats
 from polytope import *
 from beliefensemble import BeliefEnsemble
 from multibeliefensemble import MultiBeliefEnsemble, LayeredBeliefEnsemble
@@ -64,7 +65,7 @@ class GrandChallengePOMDP(POMDP):
         total_prob_obs = np.sum(
             np.multiply(p_s,
                         self.be.prob_obs(fingers_recentered, (obs_contact, obs_iz), self.accuracy)))
-
+    
         return total_prob_obs
 
     def update_belief(self, b_s, a, o):
@@ -118,25 +119,27 @@ class GrandChallengePOMDP(POMDP):
         #          + number of cols with nonzero belief
         #  and
         #         num with nonzero belief.
-
-        if disbelief_threshold is None:
-            disbelief_threshold = 0.5 / (self.be.nx*self.be.ny)  # 1/(nx*ny) is prob of everything under uniform
+        return scipy.stats.entropy(b_s)
         
-        p_s = b_s
 
-        p_s = p_s.reshape((self.be.nx,self.be.ny,self.be.ntheta))
-        p_s = np.sum(p_s,2)
-        p_s = p_s.reshape((self.be.nx,self.be.ny))
-
-        p_s_nonzero = (p_s > disbelief_threshold) + 0.0
-
-        row_sums = np.sum(p_s, 1)
-        row_count_nonzero = np.sum( (row_sums > self.be.ny*disbelief_threshold) + 0.0 )
-
-        col_sums = np.sum(p_s, 0)
-        col_count_nonzero = np.sum( (col_sums > self.be.nx*disbelief_threshold) + 0.0 )
-
-        return min( np.sum(p_s_nonzero) , np.sum(row_count_nonzero) + np.sum(col_count_nonzero) )
+##        if disbelief_threshold is None:
+##            disbelief_threshold = 0.5 / (self.be.nx*self.be.ny)  # 1/(nx*ny) is prob of everything under uniform
+##        
+##        p_s = b_s
+##
+##        p_s = p_s.reshape((self.be.nx,self.be.ny,self.be.ntheta))
+##        p_s = np.sum(p_s,2)
+##        p_s = p_s.reshape((self.be.nx,self.be.ny))
+##
+##        p_s_nonzero = (p_s > disbelief_threshold) + 0.0
+##
+##        row_sums = np.sum(p_s, 1)
+##        row_count_nonzero = np.sum( (row_sums > self.be.ny*disbelief_threshold) + 0.0 )
+##
+##        col_sums = np.sum(p_s, 0)
+##        col_count_nonzero = np.sum( (col_sums > self.be.nx*disbelief_threshold) + 0.0 )
+##
+##        return min( np.sum(p_s_nonzero) , np.sum(row_count_nonzero) + np.sum(col_count_nonzero) )
 
     def get_possible_actions(self, b_s):
         p_s = b_s

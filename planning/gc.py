@@ -83,10 +83,17 @@ class GrandChallengeGraspPlanInstance(object):
 
 
         # Note the (x,y)-offset of fingertips
+##        self.finger_positions = [np.array([[fx],[fy]]) for (fx, fy) in \
+##                                 [(FINGER_LENGTH,FINGER_OFFSET),
+##                                  (FINGER_LENGTH,-FINGER_OFFSET),
+##                                  (-FINGER_LENGTH,0)]]
+##        self.finger_positions = [np.array([[fx],[fy]]) for (fx, fy) in \
+##                                         [(0,FINGER_OFFSET),
+##                                          (0,-FINGER_OFFSET),
+##                                          (-2*FINGER_LENGTH,0)]]
         self.finger_positions = [np.array([[fx],[fy]]) for (fx, fy) in \
-                                 [(FINGER_LENGTH,FINGER_OFFSET),
-                                  (FINGER_LENGTH,-FINGER_OFFSET),
-                                  (-FINGER_LENGTH,0)]]
+                                         [(0,FINGER_OFFSET),
+                                          (0,-FINGER_OFFSET)]]
 
     def reset(self, block_type):
         self.block_type = block_type
@@ -166,31 +173,55 @@ if __name__ == '__main__':
 
     beliefs = []
     actions = []
-    max_itr = 5
+    max_itr = 15
     a, o = None, None
 
+    real_object_indices = (10, 10, 3)
+    real_object_big_index = gc.gc_pomdp.be.indices_to_big_index(real_object_indices)
+    print 'Real object pose: %s' % str(gc.gc_pomdp.be.indices_to_continuous_pose(real_object_indices))
+    print gc.gc_pomdp.be.x0
+    print gc.gc_pomdp.be.x1
+
+    # gc.gc_pomdp.be.belief_ensembles[0].belief_ensembles[0].polytopes[real_object_big_index].render_polytope(plt, xmax=1.0)
+
+
+    gc.gc_pomdp.be.render_belief_xy(plt, gc.b_s)
+    
     beliefs.append(gc.b_s)
     while max_itr > 0 and not gc.gc_pomdp.is_terminal_belief(gc.b_s, a, o):
-        gc.gc_pomdp.be.render_belief_xy(plt, gc.b_s)
-        
         gp = gc.gc_pomdp
+
+        print 'Real object pose: %s' % str(gc.gc_pomdp.be.indices_to_continuous_pose(real_object_indices))
+
         print 'About to solve...'
         a, score = gc.query_action()
         print 'score: %s action: %s' % (str(score), str(a))
         
         actions.append(a)
 
-        o = ((1,1,0), 0)
+
+        #  Ideal belief distribution:
+        fingers_recentered = [a + f for f in gc.gc_pomdp.finger_positions]
+        ideal_contact_given_s, ideal_iz_given_s = gc.gc_pomdp.be.get_ideal_obs(fingers_recentered)
+        simulated_contact = ideal_contact_given_s[gc.gc_pomdp.be.indices_to_big_index(real_object_indices)]
+        simulated_iz = ideal_iz_given_s[real_object_big_index][0]
+        o = (tuple(simulated_contact), simulated_iz)
+        print 'obs: %s' % str(o)
         gc.step_update_bs(a, o)
-        
+
         #sim_obs = sim.grasp_action(a[0],a[1])
         #o = gp.sim_obs_to_pomdp_obs(sim_obs)
-        print 'obs: %s' % str(o)
         beliefs.append(gc.b_s)
         print 'is_terminal_belief(b_s): %s' % str(gp.is_terminal_belief(gc.b_s,a,o))
 
         print 'np.argmax b_s: %s' % str(np.argmax(gc.b_s))
+        print 'np.argmax b_s in continuous: %s' % str(
+            gc.gc_pomdp.be.indices_to_continuous_pose(
+              gc.gc_pomdp.be.big_index_to_indices(np.argmax(gc.b_s))))
 
         loc,confidence = gc.query_grasp_loc_confidence()
         print 'grasp and graspability: %s %s' % (str(loc), str(confidence))
         max_itr -= 1
+
+        gc.gc_pomdp.be.render_belief_xy(plt, gc.b_s, fingers_recentered)
+
