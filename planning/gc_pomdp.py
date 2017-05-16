@@ -20,16 +20,17 @@ class GrandChallengePOMDP(POMDP):
 
         actions - continuous 2D Numpy vector giving the
         (x,y) location of the fingers as they are pressed
-        onto the table
+        onto the table. Pose is assumed vertical
 
-        observations - contact results from the fingers,
-        a tuple of 1s and 0s (1=contact).
+        observations - contact results from the fingers
+        (as a tuple of 1s and 0s (1=contact)) and the iz
+        value for the plane at which the hand stopped.
+        eg: obs = ((1,0,1), 2)
 
         """
     def __init__(self, layered_belief_ensemble,
                         desired_grasp_pose,
-                        finger_positions,
-                        f):
+                        finger_positions):
         """ Makes a POMDP instance
 
             Parameters:
@@ -41,34 +42,43 @@ class GrandChallengePOMDP(POMDP):
 
             finger_positions: hand-relative finger positions, as
             a python list of 2D Numpy vectors. """
-
         self.be = layered_belief_ensemble
-        self.desired_grasp_loc = desired_grasp_loc
+        self.desired_grasp_pose = desired_grasp_pose
         self.finger_positions = finger_positions
 
     def prob_obs_given_bs_a(self, b_s, a, o):
         p_s = b_s
         fingers_center = a
-        obs_contact = o
+        obs_contact, iz = o
 
         fingers_recentered = [fingers_center + f for f in self.finger_positions]
+
+        # Delta_dist over iz:
+        b_z = np.zeros((len(self.be.belief_ensembles),1))
+        b_z[iz][0] = 1.0
 
         # For a given observation o, get the probability of that observation
         # under the belief p_s.
         total_prob_obs = np.sum(
             np.multiply(p_s,
-                        self.layered_belief_ensemble.prob_obs(fingers_recentered, obs_contact)))
+                        self.be.prob_obs(fingers_recentered, obs_contact, b_z)))
 
         return total_prob_obs
 
     def update_belief(self, b_s, a, o):
         p_s = b_s
         fingers_center = a
-        obs_contact = o
+        obs_contact, iz = o
 
+        fingers_recentered = [fingers_center + f for f in self.finger_positions]
+
+        # Delta_dist over iz:
+        b_z = np.zeros((len(self.be.belief_ensembles),1))
+        b_z[iz][0] = 1.0
+        
         prob_obs_given_s = \
             np.multiply(p_s,
-                        self.layered_belief_ensemble.prob_obs(fingers_recentered, obs_contact))
+                        self.be.prob_obs(fingers_recentered, obs_contact, b_z))
 
         p_s_new = prob_obs_given_s
 
@@ -123,14 +133,14 @@ class GrandChallengePOMDP(POMDP):
         p_s_nonzero = (p_s > disbelief_threshold) + 0.0
 
         row_sums = np.sum(p_s, 1)
-        row_count_nonzero = np.sum( (row_sums > self.ny*disbelief_threshold) + 0.0 )
+        row_count_nonzero = np.sum( (row_sums > self.be.ny*disbelief_threshold) + 0.0 )
 
         col_sums = np.sum(p_s, 0)
-        col_count_nonzero = np.sum( (col_sums > self.nx*disbelief_threshold) + 0.0 )
+        col_count_nonzero = np.sum( (col_sums > self.be.nx*disbelief_threshold) + 0.0 )
 
         return min( np.sum(p_s_nonzero) , np.sum(row_count_nonzero) + np.sum(col_count_nonzero) )
 
-    def get_possible_actions(self, b_s, N=40, seed=None):
+    def get_possible_actions(self, b_s, N=4, seed=None):
         p_s = b_s
 
         possible_actions = []
@@ -152,7 +162,7 @@ class GrandChallengePOMDP(POMDP):
 ##        fingers_recentered = [fingers_center + f for f in self.finger_positions]
 ##
 ##        # For each in s, get the observation under this a
-##        obs_ideals = self.layered_belief_ensemble.get_ideal_obs(fingers_recentered, obs_contact)
+##        obs_ideals = self.be.get_ideal_obs(fingers_recentered, obs_contact)
 ##
 ##        # Zero-out observations corresponding to probability zero
 ##        obs_prob_scaled = np.multiply(np.kron(p_s,np.ones((len(self.finger_positions),1))),obs_ideals)
@@ -168,13 +178,16 @@ class GrandChallengePOMDP(POMDP):
             for j in range(len(self.finger_positions)):
                 obs.insert(0, [k % 2])
                 k //= 2
-            possible_observations.append(np.array(obs))
+
+            for k in range(len(self.be.belief_ensembles)):
+                possible_observations.append((np.array(obs), k))
         
-        return possible_observations
+        return [o for o in possible_observations if self.prob_obs_given_bs_a(b_s, a, o) > 0.0]
 
     def get_uniform_belief(self):
         return self.be.get_uniform_belief()
 
 
 if __name__ == '__main__':
+    print 'I am GrandChallengePOMDP'
     pass # TODO: Test this POMDP

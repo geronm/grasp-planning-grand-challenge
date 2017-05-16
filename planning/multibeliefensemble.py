@@ -95,7 +95,7 @@ class MultiBeliefEnsemble:
             current belief discretization
 
             TODO Params and Return"""
-        return np.ones(self.S, 1) / float(self.S)
+        return np.ones((self.S, 1)) / float(self.S)
 
     def get_ideal_obs(self, fingers):
         """ Gives a vector for the predicted obs over each S
@@ -221,6 +221,12 @@ class LayeredBeliefEnsemble:
         could handle only a single 2D shape in the 2D
         plane the multi-belief ensemble can reason about multiple
         2D planes above one another.
+
+        The discrete planes will represent the TOP SURFACE of
+        each layer. The 0-layer will be the highest (first-touched),
+        while the (len()-1)-layer will be the lowest (last-touched,
+        but noto table height). In a generative
+        sense, the top layers will be hit first.
         
         This class leverages MultiBeliefEnsemble's ability to query
         for the predicted finger-contacts accross all state
@@ -333,7 +339,7 @@ class LayeredBeliefEnsemble:
             current belief discretization
 
             TODO Params and Return"""
-        return np.ones(self.S, 1) / float(self.S)
+        return np.ones((self.S, 1)) / float(self.S)
 
     def get_ideal_obs(self, fingers, iz):
         """ Gives a vector for the predicted obs over each S
@@ -361,7 +367,7 @@ class LayeredBeliefEnsemble:
         
         return 0.0 + results_full
 
-    def prob_obs(self, fingers, obs, b_z, accuracy=1.0):
+    def prob_obs(self, fingers, obs, b_z, accuracy=0.8):
         """ Vector of probability values in {p,(1-p)} giving
             prob obs given state.
 
@@ -394,14 +400,14 @@ class LayeredBeliefEnsemble:
             if b_z[iz][0] != 0:
                 ideal_obs = self.get_ideal_obs(fingers, iz)
 
-                fingers_many = np.kron(np.ones((len(ideal_obs),1)),np.array([obs]))
+                fingers_many = np.kron(np.ones((len(ideal_obs),1)),np.transpose(np.array(obs)))
 
                 # probabilities
                 prob_correct = accuracy
                 prob_incorrect = float(1-accuracy) / (2**(len(obs)) - 1)
 
                 # find bitmask of matches
-                fingers_matches = np.prod(0.0 + (fingers_many==ideal_obs), axis=1).reshape((len(ideal_obs),1))
+                fingers_matches = np.prod(0.0 + np.equal(fingers_many,ideal_obs), axis=1).reshape((len(ideal_obs),1))
 
                 prob_obs += b_z[iz][0]*(prob_incorrect + (prob_correct-prob_incorrect)*fingers_matches)
 
