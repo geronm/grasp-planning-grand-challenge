@@ -37,8 +37,10 @@ class GrandChallengeGraspPlanInstance(object):
 
         # The following parameters are common to all blocks.
         # They define the pose space and discretization.
-        x_lim = (0.450 + self.FINGER_LENGTH, 0.875 + self.FINGER_LENGTH)
-        y_lim = (-0.350, 0)
+        #x_lim = (0.450 + self.FINGER_LENGTH, 0.675 + self.FINGER_LENGTH)  # x_lim = (0.450 + self.FINGER_LENGTH, 0.875 + self.FINGER_LENGTH)
+        #y_lim = (-0.350, 0)
+        x_lim = (.500+self.FINGER_LENGTH, .80+self.FINGER_LENGTH)
+        y_lim = (-0.350, 0.350)
         theta_lim = (0, 2*np.pi)
         nx = 15
         ny = 15
@@ -67,14 +69,13 @@ class GrandChallengeGraspPlanInstance(object):
         
         be_triple = MultiBeliefEnsemble([be_square_norot1, be_square_norot2, be_square_norot3])
 
-        belief_ensembles.append(be_triple)
-        
         poly1 = Square(BLOCK_WIDTH_UNIT/2, BLOCK_WIDTH_UNIT/2)
         start = time.time()
         be_square_norot1 = BeliefEnsemble(poly1, x_lim, y_lim, theta_lim, nx, ny, ntheta)
         be_topper = MultiBeliefEnsemble([be_square_norot1])
 
         belief_ensembles.append(be_topper)
+        belief_ensembles.append(be_triple)
 
         self.canon_blocks[self.BLOCK_TRIPLE_POKE] = \
                     LayeredBeliefEnsemble(belief_ensembles, (4*BLOCK_THICKNESS_UNIT,0.0))
@@ -83,10 +84,14 @@ class GrandChallengeGraspPlanInstance(object):
 
 
         rect1 = Square(LONG_BLOCK_LENGTH/2, BLOCK_WIDTH_UNIT/2)
-
         be_rect_norot1 = BeliefEnsemble(rect1, x_lim, y_lim, theta_lim, nx, ny, ntheta)
         multi = MultiBeliefEnsemble([be_rect_norot1])
-        self.canon_blocks[self.BLOCK_LONG] = LayeredBeliefEnsemble([multi], (2*BLOCK_THICKNESS_UNIT, 0.0))
+        nullrect = Square(LONG_BLOCK_LENGTH/2, BLOCK_WIDTH_UNIT/2).translated_by_2D_vector(
+            np.array([[110.0],[110.0]]))
+        be_rect_norot2 = BeliefEnsemble(nullrect, x_lim, y_lim, theta_lim, nx, ny, ntheta)
+        multinull = MultiBeliefEnsemble([be_rect_norot2])
+
+        self.canon_blocks[self.BLOCK_LONG] = LayeredBeliefEnsemble([multinull,multi], (2*BLOCK_THICKNESS_UNIT, 0.0))
         self.canon_grasp_pose[self.BLOCK_LONG] = (0., 0., 0.)
 
         # Note the (x,y)-offset of fingertips
@@ -99,8 +104,8 @@ class GrandChallengeGraspPlanInstance(object):
 ##                                          (0,-FINGER_OFFSET),
 ##                                          (-2*FINGER_LENGTH,0)]]
         self.finger_positions = [np.array([[fx],[fy]]) for (fx, fy) in \
-                                         [(0,-FINGER_OFFSET),
-                                          (0,FINGER_OFFSET)]]
+                                         [(0,FINGER_OFFSET),
+                                          (0,-FINGER_OFFSET)]]
 
     def reset(self, block_type):
         self.block_type = block_type

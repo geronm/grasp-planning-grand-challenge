@@ -11,14 +11,14 @@ from std_srvs.srv import Empty
 from math import pi
 import numpy as np
 
-TOUCH_HYSTERESIS = -120 #gripper feedback 0-4048
+TOUCH_HYSTERESIS = 80 # -120 #gripper feedback 0-4048
 
-
+MASTER_OFFSET = -.03
 
 
 class ArmControl:
 
-  UNSAFE_Z_LIMIT_METERS = 0.56 # 0.490 # 0.62
+  UNSAFE_Z_LIMIT_METERS = 0.4 # 0.490 # 0.62
   SAFE_Z_LIMIT_METERS = 1.0
 
   def __init__(self, live=False):
@@ -26,9 +26,14 @@ class ArmControl:
     self.live = live
 
     self.Z_PROBE = [None]*3
-    self.Z_PROBE[0] = 0.83
-    self.Z_PROBE[1] = 0.79
-    self.Z_PROBE[2] = 0.68
+    self.Z_PROBE[0] = 0.72 + MASTER_OFFSET# 0.83 - .09
+    self.Z_PROBE[1] = 0.64 + MASTER_OFFSET# 0.79 - .09
+    self.Z_PROBE[2] = 0.54 + MASTER_OFFSET# 0.68 - .09  # .573
+
+    self.Z_GRASP = [None]*3
+    self.Z_GRASP[0] = self.Z_PROBE[0]
+    self.Z_GRASP[1] = self.Z_PROBE[1]# - .065
+    self.Z_GRASP[2] = self.Z_PROBE[2]# - .065 # .573
 
     #ROS-related init
     #TODO - FIX
@@ -72,8 +77,8 @@ class ArmControl:
     self.touch = (data.data[0],data.data[1],data.data[2])
 
   def calibrate_touch_sensor(self):
-    #self.goto_pt((0.800, -0.0, 1.059-.13),(pi, 0, 0))  # Almost touching: (0.800, -0.0, 1.059-.20)
-    self.goto_pt((0.5, -0.0, 0.9),(0, 1.57, 0))  # Almost touching: (0.800, -0.0, 1.059-.20)
+    self.goto_pt((0.800, -0.0, 1.059-.13),(pi, 0, 0))  # Almost touching: (0.800, -0.0, 1.059-.20)
+    #self.goto_pt((0.5, -0.0, 0.9),(0, 1.57, 0))  # Almost touching: (0.800, -0.0, 1.059-.20)
     end = rospy.get_time()+2
     i = 0
     total = [0,0,0]
@@ -114,16 +119,16 @@ class ArmControl:
     
     self.goto_pt(tuple(my_loc), tuple(my_ori))
     j=1
-    for i in range(1,3):
+    for i in range(1,2+1):
       my_loc[2] = self.Z_PROBE[i]
       self.goto_pt(tuple(my_loc), tuple(my_ori))
-      rospy.sleep(0.1)
-      if any(np.greater(self.touch_thresh, self.touch)):
-        print ('Contact detected!: %s' % str(np.greater(self.touch_thresh, self.touch)))
+      rospy.sleep(0.5)
+      if any(np.less(self.touch_thresh, self.touch)):
+        print ('Contact detected!: %s' % str(np.less(self.touch_thresh, self.touch)))
         j=i-1
         break
 
-    touch = np.greater(self.touch_thresh, self.touch)
+    touch = np.less(self.touch_thresh, self.touch)
     # Finally, move back to original location, orientation
     self.goto_pt(tuple(location), tuple(orientation))
 
@@ -262,6 +267,34 @@ if __name__=='__main__':
     - Rotation: in Quaternion [0.998, 0.042, -0.040, -0.009]
                 in RPY (radian) [-3.120, 0.079, 0.084]
                 in RPY (degree) [-178.786, 4.502, 4.837] """
+
+  ## 
+  """ At time 1494977299.745
+    - Translation: [0.673, 0.018, 0.668]
+    - Rotation: in Quaternion [0.011, 0.725, -0.010, 0.688]
+                in RPY (radian) [3.113, 1.518, 3.084]
+                in RPY (degree) [178.389, 86.984, 176.685] """
+
+  ##
+  """ At time 1494978379.493
+    - Translation: [0.809, -0.305, 0.573]
+    - Rotation: in Quaternion [0.025, 0.999, -0.030, 0.031]
+                in RPY (radian) [-3.083, 0.063, 3.094]
+                in RPY (degree) [-176.647, 3.622, 177.268] """
+
+  ##
+  """ At time 1494979245.315
+    - Translation: [0.780, -0.302, 0.607]
+    - Rotation: in Quaternion [1.000, 0.011, 0.020, -0.010]
+                in RPY (radian) [-3.122, -0.041, 0.021]
+                in RPY (degree) [-178.866, -2.333, 1.229] """
+
+
+  ## WITH PALM: X=.796 Y=-.180
+
+  ## WITH TIPS: X=.658 Y=-.175
+
+  ## PALM - TIPS: .138
 
   # LOC_VERY_CLOSE_DONTUSE = [0.450, 0.0, 0.775]
   LOC_NOMINAL = [0.735, 0.0, 0.8] # [0.735, 0.0, 0.69] # [0.735, 0.0, 0.775]

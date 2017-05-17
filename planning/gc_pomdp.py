@@ -148,8 +148,8 @@ class GrandChallengePOMDP(POMDP):
 
         # Consider a random set of actions sampled within the domain
         for i in range(self.num_actions_max):
-            x = self.be.x0 + self.randgen.random()*(self.be.x1 - self.be.x0)
-            y = self.be.y0 + self.randgen.random()*(self.be.y1 - self.be.y0)
+            x = self.be.x0 + self.randgen.random()*(self.be.x1 - self.be.x0)*0.65
+            y = self.be.y0 + self.randgen.random()*(self.be.y1 - self.be.y0)*0.9
             theta = 0
             possible_actions.append(np.array([[x],[y]]))
 
